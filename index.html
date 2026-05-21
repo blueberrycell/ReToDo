@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hygiene Tracker</title>
+    <title>ReToDo</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Hygiene">
-    <!-- Ein Platzhalter-Icon für deinen Home-Screen -->
-    <link rel="apple-touch-icon" href="https://via.placeholder.com/192/4a90e2/ffffff?text=H">
+    <meta name="apple-mobile-web-app-title" content="ReToDo">
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/192/4a90e2/ffffff?text=R">
     <style>
         :root {
             --bg-color: #f4f4f9;
@@ -56,6 +55,7 @@
             margin-left: 10px;
             font-size: 14px;
             background-color: var(--card-bg);
+            max-width: 200px;
         }
 
         button {
@@ -116,6 +116,7 @@
         .status-good { background-color: var(--success); }
         .status-warn { background-color: var(--warning); }
         .status-bad { background-color: var(--danger); }
+        .status-future { background-color: #9b59b6; } /* Color for -1 */
 
         .item-details {
             margin-top: 5px;
@@ -123,7 +124,6 @@
             color: #7f8c8d;
         }
 
-        /* Settings View */
         #settings-view {
             display: none;
         }
@@ -181,12 +181,19 @@
             margin-left: auto;
         }
 
-        .add-item-card, .data-transfer-card {
+        .add-item-card, .data-transfer-card, .config-card {
             background: var(--card-bg);
             padding: 15px;
             border-radius: 8px;
             margin-top: 25px;
             border: 2px dashed #bdc3c7;
+        }
+
+        .config-card {
+            border: 2px solid var(--primary);
+            background-color: #e8f4fd;
+            margin-top: 0;
+            margin-bottom: 20px;
         }
 
         .add-item-card h3, .data-transfer-card h3 {
@@ -219,9 +226,8 @@
 </head>
 <body>
 
-    <!-- MAIN TRACKER VIEW -->
     <div id="tracker-view">
-        <h1>Hygiene Tracker</h1>
+        <h1>ReToDo</h1>
         <div class="header-buttons">
             <button class="btn-settings" onclick="toggleView()">⚙️ Liste bearbeiten</button>
         </div>
@@ -231,39 +237,46 @@
             <select id="sort-select" onchange="changeSortMode()">
                 <option value="manual">Manuell</option>
                 <option value="soonest">Bald fällig</option>
-                <option value="recent">Zuletzt gewechselt</option>
+                <option value="rel_diff">Fälligkeit (Relativ %)</option>
+                <option value="abs_diff">Fälligkeit (Absolut Tage)</option>
             </select>
         </div>
 
         <div id="item-list"></div>
     </div>
 
-    <!-- SETTINGS VIEW -->
     <div id="settings-view">
         <h1>Liste bearbeiten</h1>
-        <p style="text-align: center; color: #7f8c8d; font-size: 14px;">Reihenfolge verschieben, Namen ändern oder Elemente löschen.</p>
         
+        <div class="config-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label for="settings-day-change" style="font-weight: bold; color: var(--primary);">Tageswechsel (Uhrzeit):</label>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <input type="number" id="settings-day-change" min="0" max="23" style="width: 50px; padding: 6px; text-align: center; border-radius: 5px; border: 1px solid #ccc;">
+                    <span>Uhr</span>
+                </div>
+            </div>
+            <p style="font-size: 12px; color: #555; margin-top: 8px; margin-bottom: 0;">Legt fest, ab wann ein neuer Tag beginnt (z.B. 4 Uhr nachts).</p>
+        </div>
+
         <div id="settings-list"></div>
 
-        <!-- Add New Item Section -->
         <div class="add-item-card">
             <h3>Neues Element hinzufügen</h3>
             <input type="text" id="new-item-name" placeholder="Name (z.B. Winterjacke)" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px;">
             <div class="setting-inputs">
-                <label>Aktuelle Tage: <input type="number" id="new-item-current" value="0" min="0"></label>
+                <label>Aktuelle Tage: <input type="number" id="new-item-current" value="0" min="-1"></label>
                 <label>Max. Tage: <input type="number" id="new-item-max" value="3" min="1"></label>
             </div>
             <button class="btn-reset" style="background-color: var(--primary); margin-top: 15px;" onclick="addNewItem()">+ Hinzufügen</button>
         </div>
 
-        <!-- Data Import/Export Section -->
         <div class="data-transfer-card">
             <h3>Daten Import / Export</h3>
-            <p style="font-size: 13px; color: #7f8c8d; margin-top: 0;">Kopiere den Text, um ihn auf ein anderes Gerät zu übertragen, oder füge fremden Text hier ein.</p>
             <textarea id="data-transfer-area" rows="4" placeholder="Hier erscheint der Daten-Code..."></textarea>
             <div style="display: flex; gap: 10px;">
-                <button class="btn-reset" style="background-color: #34495e; margin-top: 0; flex: 1;" onclick="exportData()">Exportieren</button>
-                <button class="btn-reset" style="background-color: var(--warning); margin-top: 0; flex: 1;" onclick="importData()">Importieren</button>
+                <button class="btn-reset" style="background-color: #34495e; margin-top: 0; flex: 1;" onclick="exportData()">Export</button>
+                <button class="btn-reset" style="background-color: var(--warning); margin-top: 0; flex: 1;" onclick="importData()">Import</button>
             </div>
         </div>
 
@@ -288,11 +301,18 @@
 
         let items = [];
         let currentSortMode = 'manual';
+        let dayChangeHour = 4; // Standardmäßig um 4:00 Uhr morgens
 
         function loadData() {
-            const stored = localStorage.getItem('hygieneTrackerData');
-            const storedSort = localStorage.getItem('hygieneTrackerSort');
-            
+            // Wir nutzen neue Keys für ReToDo, um Konflikte zu vermeiden (oder umzuziehen)
+            const stored = localStorage.getItem('reToDoData') || localStorage.getItem('hygieneTrackerData');
+            const storedSort = localStorage.getItem('reToDoSort');
+            const storedHour = localStorage.getItem('reToDoDayChange');
+
+            if (storedHour !== null) {
+                dayChangeHour = parseInt(storedHour, 10);
+            }
+
             if (stored) {
                 items = JSON.parse(stored);
             } else {
@@ -304,21 +324,34 @@
                 currentSortMode = storedSort;
                 document.getElementById('sort-select').value = currentSortMode;
             }
+
+            document.getElementById('settings-day-change').value = dayChangeHour;
         }
 
         function saveData() {
-            localStorage.setItem('hygieneTrackerData', JSON.stringify(items));
+            localStorage.setItem('reToDoData', JSON.stringify(items));
+            localStorage.setItem('reToDoDayChange', dayChangeHour);
+        }
+
+        // Ermittelt das "logische" Datum unter Berücksichtigung der Tageswechsel-Uhrzeit
+        function getLogicalDate(timestamp) {
+            const d = new Date(timestamp);
+            d.setHours(d.getHours() - dayChangeHour);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
         }
 
         function getDaysElapsed(timestamp) {
             const msPerDay = 1000 * 60 * 60 * 24;
-            const elapsedMs = Date.now() - timestamp;
-            return Math.floor(elapsedMs / msPerDay);
+            const nowLogical = getLogicalDate(Date.now());
+            const itemLogical = getLogicalDate(timestamp);
+            // Math.round verhindert Fehler durch Sommer-/Winterzeit Umstellungen
+            return Math.round((nowLogical - itemLogical) / msPerDay);
         }
 
         function changeSortMode() {
             currentSortMode = document.getElementById('sort-select').value;
-            localStorage.setItem('hygieneTrackerSort', currentSortMode);
+            localStorage.setItem('reToDoSort', currentSortMode);
             renderTracker();
         }
 
@@ -326,7 +359,6 @@
             const container = document.getElementById('item-list');
             container.innerHTML = '';
 
-            // Liste für die Anzeige kopieren und sortieren, ohne das Original-Array zu verändern
             let displayItems = [...items];
 
             if (currentSortMode === 'soonest') {
@@ -335,11 +367,25 @@
                     const remainingB = b.maxDays - getDaysElapsed(b.lastChanged);
                     return remainingA - remainingB;
                 });
-            } else if (currentSortMode === 'recent') {
+            } else if (currentSortMode === 'rel_diff') {
+                // Biggest relative difference (Zentriert um die 100% Fälligkeit)
                 displayItems.sort((a, b) => {
-                    const elapsedA = getDaysElapsed(a.lastChanged);
-                    const elapsedB = getDaysElapsed(b.lastChanged);
-                    return elapsedA - elapsedB;
+                    const cA = getDaysElapsed(a.lastChanged);
+                    const cB = getDaysElapsed(b.lastChanged);
+                    // abs((Ist/Max) - 1): Ergibt 0 für genau fällige (werden als erstes gezeigt)
+                    const mA = Math.abs((cA / a.maxDays) - 1);
+                    const mB = Math.abs((cB / b.maxDays) - 1);
+                    return mA - mB;
+                });
+            } else if (currentSortMode === 'abs_diff') {
+                // Biggest absolute difference (Zentriert um die absolute Fälligkeit)
+                displayItems.sort((a, b) => {
+                    const cA = getDaysElapsed(a.lastChanged);
+                    const cB = getDaysElapsed(b.lastChanged);
+                    // abs(Ist - Max): Ergibt 0 für genau fällige
+                    const mA = Math.abs(cA - a.maxDays);
+                    const mB = Math.abs(cB - b.maxDays);
+                    return mA - mB;
                 });
             }
 
@@ -348,14 +394,17 @@
                 const daysRemaining = item.maxDays - daysElapsed;
                 
                 let statusClass = 'status-good';
-                let statusText = 'Alles frisch';
+                let statusText = 'Alles im Lot';
 
-                if (daysRemaining <= 1 && daysRemaining > 0) {
+                if (daysElapsed < 0) {
+                    statusClass = 'status-future';
+                    statusText = 'Für morgen erledigt';
+                } else if (daysRemaining <= 1 && daysRemaining > 0) {
                     statusClass = 'status-warn';
-                    statusText = 'Bald wechseln';
+                    statusText = 'Bald fällig';
                 } else if (daysRemaining <= 0) {
                     statusClass = 'status-bad';
-                    statusText = 'Wechseln fällig!';
+                    statusText = 'Fällig!';
                 }
 
                 const card = document.createElement('div');
@@ -368,7 +417,7 @@
                     <div class="item-details">
                         Tag ${daysElapsed} von max. ${item.maxDays}
                     </div>
-                    <button class="btn-reset" onclick="resetItem('${item.id}')">🔄 Gewechselt / Gewaschen</button>
+                    <button class="btn-reset" onclick="resetItem('${item.id}')">✔️ Erledigt</button>
                 `;
                 container.appendChild(card);
             });
@@ -377,7 +426,16 @@
         function resetItem(id) {
             const item = items.find(i => i.id === id);
             if (item) {
-                item.lastChanged = Date.now();
+                const currentDays = getDaysElapsed(item.lastChanged);
+                
+                if (currentDays === 0) {
+                    // Wenn wir schon bei 0 sind, springen wir auf -1 (24 Stunden in die Zukunft pushen)
+                    item.lastChanged = Date.now() + (24 * 60 * 60 * 1000);
+                } else {
+                    // Setzt es auf aktuell / 0
+                    item.lastChanged = Date.now();
+                }
+                
                 saveData();
                 renderTracker();
             }
@@ -386,6 +444,8 @@
         function renderSettings() {
             const container = document.getElementById('settings-list');
             container.innerHTML = '';
+            
+            document.getElementById('settings-day-change').value = dayChangeHour;
 
             items.forEach((item, index) => {
                 const currentDays = getDaysElapsed(item.lastChanged);
@@ -397,7 +457,7 @@
                         <button class="btn-icon" onclick="moveItem('${item.id}', 'up')" ${index === 0 ? 'style="opacity:0.2; pointer-events:none;"' : ''}>⬆️</button>
                         <button class="btn-icon" onclick="moveItem('${item.id}', 'down')" ${index === items.length - 1 ? 'style="opacity:0.2; pointer-events:none;"' : ''}>⬇️</button>
                         
-                        <label style="margin-left: 10px;">Ist-Tage: <input type="number" id="current-${item.id}" value="${currentDays}" min="0"></label>
+                        <label style="margin-left: 10px;">Ist-Tage: <input type="number" id="current-${item.id}" value="${currentDays}" min="-1"></label>
                         <label>Max. Tage: <input type="number" id="max-${item.id}" value="${item.maxDays}" min="1"></label>
                         
                         <button class="btn-delete" onclick="deleteItem('${item.id}')">🗑️</button>
@@ -410,6 +470,15 @@
         function syncInputsToArray() {
             const msPerDay = 1000 * 60 * 60 * 24;
             
+            // Tageswechsel Stunde synchronisieren
+            const dayChangeInput = document.getElementById('settings-day-change');
+            if (dayChangeInput) {
+                const newHour = parseInt(dayChangeInput.value, 10);
+                if (!isNaN(newHour) && newHour >= 0 && newHour <= 23) {
+                    dayChangeHour = newHour;
+                }
+            }
+
             items.forEach(item => {
                 const nameInput = document.getElementById(`name-${item.id}`);
                 const currentInput = document.getElementById(`current-${item.id}`);
@@ -421,9 +490,9 @@
                 item.maxDays = parseInt(maxInput.value) || item.maxDays;
                 
                 const oldCurrentDays = getDaysElapsed(item.lastChanged);
-                const newCurrentDays = parseInt(currentInput.value) || 0;
+                const newCurrentDays = parseInt(currentInput.value);
 
-                if (oldCurrentDays !== newCurrentDays) {
+                if (!isNaN(newCurrentDays) && oldCurrentDays !== newCurrentDays) {
                     item.lastChanged = Date.now() - (newCurrentDays * msPerDay);
                 }
             });
@@ -464,7 +533,7 @@
             const maxDays = parseInt(document.getElementById('new-item-max').value) || 1;
 
             if (!nameInput) {
-                alert("Bitte gib einen Namen für das neue Element ein.");
+                alert("Bitte gib einen Namen ein.");
                 return;
             }
 
@@ -485,9 +554,8 @@
             document.getElementById('new-item-max').value = '3';
         }
 
-        // --- NEUE EXPORT/IMPORT FUNKTIONEN ---
         function exportData() {
-            syncInputsToArray(); // Sichert eventuell gerade getippte Änderungen
+            syncInputsToArray(); 
             const exportString = JSON.stringify(items);
             const textarea = document.getElementById('data-transfer-area');
             textarea.value = exportString;
@@ -499,30 +567,26 @@
             const textarea = document.getElementById('data-transfer-area');
             const importString = textarea.value.trim();
             
-            if (!importString) {
-                alert("Bitte füge zuerst den kopierten Daten-Code in das Textfeld ein.");
-                return;
-            }
+            if (!importString) return;
 
             try {
                 const parsedData = JSON.parse(importString);
                 
                 if (Array.isArray(parsedData) && parsedData.length > 0 && parsedData[0].hasOwnProperty('id')) {
-                    if (confirm("Möchtest du deine aktuellen Daten wirklich mit den eingefügten Daten überschreiben?")) {
+                    if (confirm("Wirklich überschreiben?")) {
                         items = parsedData;
                         saveData();
                         renderSettings();
-                        textarea.value = ''; // Feld wieder leeren
+                        textarea.value = ''; 
                         alert("Daten wurden erfolgreich importiert!");
                     }
                 } else {
-                    alert("Fehler: Das Format der eingefügten Daten ist ungültig.");
+                    alert("Ungültiges Format.");
                 }
             } catch (error) {
-                alert("Fehler beim Importieren! Bitte stelle sicher, dass der gesamte Text korrekt und vollständig kopiert wurde.");
+                alert("Fehler beim Importieren!");
             }
         }
-        // -------------------------------------
 
         function saveSettingsAndExit() {
             syncInputsToArray();
@@ -545,7 +609,7 @@
             }
         }
 
-        // App starten
+        // Init
         loadData();
         renderTracker();
     </script>
