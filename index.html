@@ -4,10 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ReToDo</title>
+    
+    <!-- PWA / Android Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="ReToDo">
-	<link rel="apple-touch-icon" sizes="180x180" href="/ReToDo/apple-touch-icon.png?v=3">
+    <meta name="theme-color" content="#f4f4f9">
+    <link rel="apple-touch-icon" sizes="180x180" href="/ReToDo/apple-touch-icon.png?v=3">
+    
+    <!-- Link to Web App Manifest (Required for Android Install/Icons) -->
+    <link rel="manifest" href="manifest.json">
+
     <style>
         :root {
             --bg-color: #f4f4f9;
@@ -85,6 +92,16 @@
             width: 100%;
             margin-top: 10px;
         }
+        
+        .btn-add-main {
+            background-color: var(--primary);
+            color: white;
+            width: 100%;
+            padding: 15px;
+            margin-top: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
 
         .item-card {
             background-color: var(--card-bg);
@@ -116,12 +133,23 @@
         .status-good { background-color: var(--success); }
         .status-warn { background-color: var(--warning); }
         .status-bad { background-color: var(--danger); }
-        .status-future { background-color: #9b59b6; } /* Color for -1 */
+        .status-future { background-color: #9b59b6; }
 
         .item-details {
             margin-top: 5px;
             font-size: 14px;
             color: #7f8c8d;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .type-icon {
+            font-size: 12px;
+            background: #eee;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #555;
         }
 
         #settings-view {
@@ -157,12 +185,15 @@
             font-size: 14px;
         }
 
-        .setting-inputs input[type="number"] {
-            width: 50px;
+        .setting-inputs input[type="number"], .setting-inputs select {
             padding: 6px;
             border: 1px solid #ccc;
             border-radius: 5px;
             font-size: 14px;
+        }
+        
+        .setting-inputs input[type="number"] {
+            width: 50px;
             text-align: center;
         }
 
@@ -243,6 +274,26 @@
         </div>
 
         <div id="item-list"></div>
+        
+        <!-- Add Reminder Form on Main Page -->
+        <button class="btn-add-main" onclick="toggleMainAddForm()">+ Add Reminder</button>
+        
+        <div id="add-reminder-form" class="add-item-card" style="display: none; margin-top: 0; margin-bottom: 30px;">
+            <h3>Neue Erinnerung</h3>
+            <input type="text" id="new-item-name-main" placeholder="Name (z.B. Termin anrufen)" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px;">
+            <div class="setting-inputs" style="margin-bottom: 10px;">
+                <select id="new-item-type-main" style="width: 100%;">
+                    <option value="single" selected>Einmalig (wird nach Abschluss gelöscht)</option>
+                    <option value="recurring">Wiederkehrend</option>
+                </select>
+            </div>
+            <div class="setting-inputs">
+                <label>Bereits vergangen: <input type="number" id="new-item-current-main" value="0" min="-1"></label>
+                <label>Tage bis fällig: <input type="number" id="new-item-max-main" value="1" min="1"></label>
+            </div>
+            <button class="btn-reset" style="background-color: var(--success); margin-top: 15px;" onclick="addNewItem('main')">+ Hinzufügen</button>
+            <button class="btn-reset" style="background-color: #7f8c8d; margin-top: 10px;" onclick="toggleMainAddForm()">Abbrechen</button>
+        </div>
     </div>
 
     <div id="settings-view">
@@ -263,12 +314,18 @@
 
         <div class="add-item-card">
             <h3>Neues Element hinzufügen</h3>
-            <input type="text" id="new-item-name" placeholder="Name (z.B. Winterjacke)" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px;">
+            <input type="text" id="new-item-name" placeholder="Name (z.B. Müll rausbringen)" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px;">
+            <div class="setting-inputs" style="margin-bottom: 10px;">
+                <select id="new-item-type" style="width: 100%;">
+                    <option value="recurring" selected>Wiederkehrend (Recurring)</option>
+                    <option value="single">Einmalig (Single)</option>
+                </select>
+            </div>
             <div class="setting-inputs">
                 <label>Aktuelle Tage: <input type="number" id="new-item-current" value="0" min="-1"></label>
                 <label>Max. Tage: <input type="number" id="new-item-max" value="3" min="1"></label>
             </div>
-            <button class="btn-reset" style="background-color: var(--primary); margin-top: 15px;" onclick="addNewItem()">+ Hinzufügen</button>
+            <button class="btn-reset" style="background-color: var(--primary); margin-top: 15px;" onclick="addNewItem('settings')">+ Hinzufügen</button>
         </div>
 
         <div class="data-transfer-card">
@@ -285,26 +342,15 @@
 
     <script>
         const defaultData = [
-            { id: 'underpants', name: 'Unterhosen', maxDays: 1, lastChanged: Date.now() },
-            { id: 'socks', name: 'Socken', maxDays: 1, lastChanged: Date.now() },
-            { id: 'tshirt', name: 'T-Shirt', maxDays: 2, lastChanged: Date.now() },
-            { id: 'jeans', name: 'Jeans', maxDays: 7, lastChanged: Date.now() },
-            { id: 'trousers', name: 'Andere Hosen', maxDays: 3, lastChanged: Date.now() },
-            { id: 'hoodie', name: 'Hoodie / Jacke', maxDays: 5, lastChanged: Date.now() },
-            { id: 'pyjama_shirt', name: 'Schlaf-Shirt', maxDays: 3, lastChanged: Date.now() },
-            { id: 'pyjama_pants', name: 'Schlaf-Hose', maxDays: 3, lastChanged: Date.now() },
-            { id: 'towel', name: 'Badehandtuch', maxDays: 10, lastChanged: Date.now() },
-            { id: 'pillow', name: 'Kopfkissenbezug', maxDays: 10, lastChanged: Date.now() },
-            { id: 'blanket', name: 'Bettdeckenbezug', maxDays: 14, lastChanged: Date.now() },
-            { id: 'mattress', name: 'Matratzenschoner', maxDays: 45, lastChanged: Date.now() }
+            { id: 'default_1', name: 'add your own reminder', maxDays: 1, lastChanged: Date.now(), type: 'single' },
+            { id: 'default_2', name: 'check ToDo Items', maxDays: 5, lastChanged: Date.now(), type: 'recurring' }
         ];
 
         let items = [];
         let currentSortMode = 'manual';
-        let dayChangeHour = 4; // Standardmäßig um 4:00 Uhr morgens
+        let dayChangeHour = 4;
 
         function loadData() {
-            // Wir nutzen neue Keys für ReToDo, um Konflikte zu vermeiden (oder umzuziehen)
             const stored = localStorage.getItem('reToDoData') || localStorage.getItem('hygieneTrackerData');
             const storedSort = localStorage.getItem('reToDoSort');
             const storedHour = localStorage.getItem('reToDoDayChange');
@@ -315,6 +361,11 @@
 
             if (stored) {
                 items = JSON.parse(stored);
+                // Migration logic for old data lacking 'type'
+                items = items.map(item => {
+                    if (!item.type) item.type = 'recurring';
+                    return item;
+                });
             } else {
                 items = JSON.parse(JSON.stringify(defaultData)); 
                 saveData();
@@ -333,7 +384,6 @@
             localStorage.setItem('reToDoDayChange', dayChangeHour);
         }
 
-        // Ermittelt das "logische" Datum unter Berücksichtigung der Tageswechsel-Uhrzeit
         function getLogicalDate(timestamp) {
             const d = new Date(timestamp);
             d.setHours(d.getHours() - dayChangeHour);
@@ -345,7 +395,6 @@
             const msPerDay = 1000 * 60 * 60 * 24;
             const nowLogical = getLogicalDate(Date.now());
             const itemLogical = getLogicalDate(timestamp);
-            // Math.round verhindert Fehler durch Sommer-/Winterzeit Umstellungen
             return Math.round((nowLogical - itemLogical) / msPerDay);
         }
 
@@ -368,21 +417,17 @@
                     return remainingA - remainingB;
                 });
             } else if (currentSortMode === 'rel_diff') {
-                // Biggest relative difference (Zentriert um die 100% Fälligkeit)
                 displayItems.sort((a, b) => {
                     const cA = getDaysElapsed(a.lastChanged);
                     const cB = getDaysElapsed(b.lastChanged);
-                    // abs((Ist/Max) - 1): Ergibt 0 für genau fällige (werden als erstes gezeigt)
                     const mA = Math.abs((cA / a.maxDays) - 1);
                     const mB = Math.abs((cB / b.maxDays) - 1);
                     return mA - mB;
                 });
             } else if (currentSortMode === 'abs_diff') {
-                // Biggest absolute difference (Zentriert um die absolute Fälligkeit)
                 displayItems.sort((a, b) => {
                     const cA = getDaysElapsed(a.lastChanged);
                     const cB = getDaysElapsed(b.lastChanged);
-                    // abs(Ist - Max): Ergibt 0 für genau fällige
                     const mA = Math.abs(cA - a.maxDays);
                     const mB = Math.abs(cB - b.maxDays);
                     return mA - mB;
@@ -406,6 +451,8 @@
                     statusClass = 'status-bad';
                     statusText = 'Fällig!';
                 }
+                
+                const typeLabel = item.type === 'single' ? '📌 Einmalig' : '🔄 Wiederholend';
 
                 const card = document.createElement('div');
                 card.className = 'item-card';
@@ -415,7 +462,8 @@
                         <span class="status-badge ${statusClass}">${statusText}</span>
                     </div>
                     <div class="item-details">
-                        Tag ${daysElapsed} von max. ${item.maxDays}
+                        <span class="type-icon">${typeLabel}</span> 
+                        <span>Tag ${daysElapsed} von max. ${item.maxDays}</span>
                     </div>
                     <button class="btn-reset" onclick="resetItem('${item.id}')">✔️ Erledigt</button>
                 `;
@@ -424,16 +472,20 @@
         }
 
         function resetItem(id) {
-            const item = items.find(i => i.id === id);
-            if (item) {
-                const currentDays = getDaysElapsed(item.lastChanged);
+            const itemIndex = items.findIndex(i => i.id === id);
+            if (itemIndex > -1) {
+                const item = items[itemIndex];
                 
-                if (currentDays === 0) {
-                    // Wenn wir schon bei 0 sind, springen wir auf -1 (24 Stunden in die Zukunft pushen)
-                    item.lastChanged = Date.now() + (24 * 60 * 60 * 1000);
+                if (item.type === 'single') {
+                    // Single reminders are removed upon completion
+                    items.splice(itemIndex, 1);
                 } else {
-                    // Setzt es auf aktuell / 0
-                    item.lastChanged = Date.now();
+                    const currentDays = getDaysElapsed(item.lastChanged);
+                    if (currentDays === 0) {
+                        item.lastChanged = Date.now() + (24 * 60 * 60 * 1000);
+                    } else {
+                        item.lastChanged = Date.now();
+                    }
                 }
                 
                 saveData();
@@ -453,6 +505,12 @@
                 row.className = 'setting-row';
                 row.innerHTML = `
                     <input type="text" id="name-${item.id}" value="${item.name}">
+                    <div class="setting-inputs" style="margin-bottom: 10px;">
+                        <select id="type-${item.id}" style="width: 100%;">
+                            <option value="recurring" ${item.type !== 'single' ? 'selected' : ''}>Wiederkehrend</option>
+                            <option value="single" ${item.type === 'single' ? 'selected' : ''}>Einmalig</option>
+                        </select>
+                    </div>
                     <div class="setting-inputs">
                         <button class="btn-icon" onclick="moveItem('${item.id}', 'up')" ${index === 0 ? 'style="opacity:0.2; pointer-events:none;"' : ''}>⬆️</button>
                         <button class="btn-icon" onclick="moveItem('${item.id}', 'down')" ${index === items.length - 1 ? 'style="opacity:0.2; pointer-events:none;"' : ''}>⬇️</button>
@@ -470,7 +528,6 @@
         function syncInputsToArray() {
             const msPerDay = 1000 * 60 * 60 * 24;
             
-            // Tageswechsel Stunde synchronisieren
             const dayChangeInput = document.getElementById('settings-day-change');
             if (dayChangeInput) {
                 const newHour = parseInt(dayChangeInput.value, 10);
@@ -483,11 +540,13 @@
                 const nameInput = document.getElementById(`name-${item.id}`);
                 const currentInput = document.getElementById(`current-${item.id}`);
                 const maxInput = document.getElementById(`max-${item.id}`);
+                const typeInput = document.getElementById(`type-${item.id}`);
 
                 if (!nameInput) return; 
 
                 item.name = nameInput.value.trim() || item.name;
                 item.maxDays = parseInt(maxInput.value) || item.maxDays;
+                if (typeInput) item.type = typeInput.value;
                 
                 const oldCurrentDays = getDaysElapsed(item.lastChanged);
                 const newCurrentDays = parseInt(currentInput.value);
@@ -525,12 +584,20 @@
             }
         }
 
-        function addNewItem() {
-            syncInputsToArray();
+        function toggleMainAddForm() {
+            const form = document.getElementById('add-reminder-form');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function addNewItem(context = 'settings') {
+            const isMain = context === 'main';
+            if (!isMain) syncInputsToArray();
             
-            const nameInput = document.getElementById('new-item-name').value.trim();
-            const currentDays = parseInt(document.getElementById('new-item-current').value) || 0;
-            const maxDays = parseInt(document.getElementById('new-item-max').value) || 1;
+            const suffix = isMain ? '-main' : '';
+            const nameInput = document.getElementById('new-item-name' + suffix).value.trim();
+            const currentDays = parseInt(document.getElementById('new-item-current' + suffix).value) || 0;
+            const maxDays = parseInt(document.getElementById('new-item-max' + suffix).value) || 1;
+            const typeValue = document.getElementById('new-item-type' + suffix).value;
 
             if (!nameInput) {
                 alert("Bitte gib einen Namen ein.");
@@ -542,16 +609,25 @@
                 id: 'custom_' + Date.now(),
                 name: nameInput,
                 maxDays: maxDays,
-                lastChanged: Date.now() - (currentDays * msPerDay)
+                lastChanged: Date.now() - (currentDays * msPerDay),
+                type: typeValue
             };
 
             items.push(newItem);
             saveData();
-            renderSettings();
 
-            document.getElementById('new-item-name').value = '';
-            document.getElementById('new-item-current').value = '0';
-            document.getElementById('new-item-max').value = '3';
+            if (isMain) {
+                document.getElementById('new-item-name-main').value = '';
+                document.getElementById('new-item-current-main').value = '0';
+                document.getElementById('new-item-max-main').value = '1';
+                toggleMainAddForm();
+                renderTracker();
+            } else {
+                renderSettings();
+                document.getElementById('new-item-name').value = '';
+                document.getElementById('new-item-current').value = '0';
+                document.getElementById('new-item-max').value = '3';
+            }
         }
 
         function exportData() {
@@ -574,7 +650,8 @@
                 
                 if (Array.isArray(parsedData) && parsedData.length > 0 && parsedData[0].hasOwnProperty('id')) {
                     if (confirm("Wirklich überschreiben?")) {
-                        items = parsedData;
+                        // Ensure imported data gets a type if missing
+                        items = parsedData.map(item => ({ ...item, type: item.type || 'recurring' }));
                         saveData();
                         renderSettings();
                         textarea.value = ''; 
