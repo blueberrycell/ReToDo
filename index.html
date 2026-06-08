@@ -283,8 +283,8 @@
             <input type="text" id="new-item-name-main" placeholder="Name (z.B. Termin anrufen)" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px;">
             <div class="setting-inputs" style="margin-bottom: 10px;">
                 <select id="new-item-type-main" style="width: 100%;">
-                    <option value="single" selected>Einmalig (wird nach Abschluss gelöscht)</option>
-                    <option value="recurring">Wiederkehrend</option>
+                    <option value="single" selected>Once (will be deleted on completion)</option>
+                    <option value="recurring">Recurring</option>
                 </select>
             </div>
             <div class="setting-inputs">
@@ -452,7 +452,7 @@
                     statusText = 'Fällig!';
                 }
                 
-                const typeLabel = item.type === 'single' ? '📌 Einmalig' : '🔄 Wiederholend';
+                const typeLabel = item.type === 'single' ? '📌' : '🔄';
 
                 const card = document.createElement('div');
                 card.className = 'item-card';
@@ -507,8 +507,8 @@
                     <input type="text" id="name-${item.id}" value="${item.name}">
                     <div class="setting-inputs" style="margin-bottom: 10px;">
                         <select id="type-${item.id}" style="width: 100%;">
-                            <option value="recurring" ${item.type !== 'single' ? 'selected' : ''}>Wiederkehrend</option>
-                            <option value="single" ${item.type === 'single' ? 'selected' : ''}>Einmalig</option>
+                            <option value="recurring" ${item.type !== 'single' ? 'selected' : ''}>Recurring</option>
+                            <option value="single" ${item.type === 'single' ? 'selected' : ''}>Once</option>
                         </select>
                     </div>
                     <div class="setting-inputs">
