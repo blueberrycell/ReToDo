@@ -77,10 +77,6 @@
             border: 2px solid var(--primary);
         }
 
-        .filter-emoji.all-active {
-            opacity: 1;
-        }
-
         .sort-container {
             display: flex;
             justify-content: flex-end;
@@ -429,7 +425,7 @@
         let items = [];
         let currentSortMode = 'manual';
         let dayChangeHour = 4;
-        let activeCategoryFilter = null; // null means show all
+        let activeCategoryFilters = []; // Array of selected category IDs
 
         function loadData() {
             const storedCats = localStorage.getItem('reToDoCategories');
@@ -438,6 +434,9 @@
             } else {
                 categories = JSON.parse(JSON.stringify(defaultCategories));
             }
+
+            // Select all categories by default on start
+            activeCategoryFilters = categories.map(c => c.id);
 
             const stored = localStorage.getItem('reToDoData') || localStorage.getItem('hygieneTrackerData');
             const storedSort = localStorage.getItem('reToDoSort');
@@ -512,18 +511,19 @@
             
             categories.forEach(cat => {
                 const el = document.createElement('div');
-                const isAllActive = activeCategoryFilter === null;
-                const isActive = activeCategoryFilter === cat.id;
+                const isActive = activeCategoryFilters.includes(cat.id);
                 
-                el.className = 'filter-emoji ' + (isActive ? 'active' : (isAllActive ? 'all-active' : ''));
+                el.className = 'filter-emoji ' + (isActive ? 'active' : '');
                 el.innerText = cat.emoji;
                 el.title = cat.name;
                 
                 el.onclick = () => {
-                    if (activeCategoryFilter === cat.id) {
-                        activeCategoryFilter = null; // Toggle off
+                    if (isActive) {
+                        // Toggle off
+                        activeCategoryFilters = activeCategoryFilters.filter(id => id !== cat.id);
                     } else {
-                        activeCategoryFilter = cat.id; // Toggle on
+                        // Toggle on
+                        activeCategoryFilters.push(cat.id);
                     }
                     renderFilters();
                     renderTracker();
@@ -573,6 +573,8 @@
             };
             
             categories.push(newCat);
+            activeCategoryFilters.push(newCat.id); // Show the new category by default
+            
             emojiInput.value = '';
             nameInput.value = '';
             
@@ -597,8 +599,8 @@
                     }
                 });
                 
-                if (activeCategoryFilter === id) {
-                    activeCategoryFilter = null;
+                if (activeCategoryFilters.includes(id)) {
+                    activeCategoryFilters = activeCategoryFilters.filter(fId => fId !== id);
                 }
                 
                 saveData();
@@ -651,10 +653,8 @@
 
             let displayItems = [...items];
 
-            // Apply Category Filter
-            if (activeCategoryFilter !== null) {
-                displayItems = displayItems.filter(item => item.categoryId === activeCategoryFilter);
-            }
+            // Apply Category Filter (only show if category is in activeCategoryFilters)
+            displayItems = displayItems.filter(item => activeCategoryFilters.includes(item.categoryId));
 
             if (currentSortMode === 'soonest') {
                 displayItems.sort((a, b) => {
@@ -981,6 +981,9 @@
                         alert("Ungültiges Format.");
                         return;
                     }
+                    
+                    // Reset filters to all after importing new categories
+                    activeCategoryFilters = categories.map(c => c.id);
                     
                     saveData();
                     updateCategoryDropdowns();
