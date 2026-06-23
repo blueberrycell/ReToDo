@@ -46,6 +46,40 @@
             justify-content: space-between;
             margin-bottom: 10px;
         }
+        
+        .category-filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+
+        .filter-emoji {
+            font-size: 24px;
+            cursor: pointer;
+            opacity: 0.4;
+            transition: opacity 0.2s, transform 0.1s;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: var(--card-bg);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 2px solid transparent;
+            user-select: none;
+        }
+        
+        .filter-emoji:active {
+            transform: scale(0.95);
+        }
+
+        .filter-emoji.active {
+            opacity: 1;
+            border: 2px solid var(--primary);
+        }
+
+        .filter-emoji.all-active {
+            opacity: 1;
+        }
 
         .sort-container {
             display: flex;
@@ -150,6 +184,11 @@
             padding: 2px 6px;
             border-radius: 4px;
             color: #555;
+        }
+        
+        .cat-badge {
+            margin-left: auto;
+            font-size: 20px;
         }
 
         #settings-view {
@@ -263,6 +302,9 @@
             <button class="btn-settings" onclick="toggleView()">⚙️ Liste bearbeiten</button>
         </div>
         
+        <!-- Category Filter Bar -->
+        <div class="category-filter-bar" id="category-filter-bar"></div>
+        
         <div class="sort-container">
             <label for="sort-select">Sortieren nach:</label>
             <select id="sort-select" onchange="changeSortMode()">
@@ -281,13 +323,16 @@
         <div id="add-reminder-form" class="add-item-card" style="display: none; margin-top: 0; margin-bottom: 30px;">
             <h3>Neue Erinnerung</h3>
             <input type="text" id="new-item-name-main" placeholder="Name (z.B. Termin anrufen)" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px;">
+            
             <div class="setting-inputs" style="margin-bottom: 10px;">
-                <select id="new-item-type-main" style="width: 100%;" onchange="toggleNewAccFields('main')">
-                    <option value="single" selected>Once (will be deleted on completion)</option>
-                    <option value="recurring">Recurring (Wiederkehrend)</option>
-                    <option value="accumulating">Accumulating (Sammelnd)</option>
+                <select id="new-item-type-main" style="flex: 1;" onchange="toggleNewAccFields('main')">
+                    <option value="single" selected>Once</option>
+                    <option value="recurring">Recurring</option>
+                    <option value="accumulating">Accumulating</option>
                 </select>
+                <select id="new-item-category-main" style="flex: 1;"></select>
             </div>
+            
             <div class="setting-inputs">
                 <label>Bereits vergangen: <input type="number" id="new-item-current-main" value="0" min="-1"></label>
                 <label>Tage bis fällig: <input type="number" id="new-item-max-main" value="1" min="1"></label>
@@ -306,6 +351,7 @@
     <div id="settings-view">
         <h1>Liste bearbeiten</h1>
         
+        <!-- Global Settings -->
         <div class="config-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <label for="settings-day-change" style="font-weight: bold; color: var(--primary);">Tageswechsel (Uhrzeit):</label>
@@ -316,6 +362,18 @@
             </div>
             <p style="font-size: 12px; color: #555; margin-top: 8px; margin-bottom: 0;">Legt fest, ab wann ein neuer Tag beginnt (z.B. 4 Uhr nachts).</p>
         </div>
+        
+        <!-- Category Management -->
+        <div class="config-card" style="border-color: var(--warning); background-color: #fffaf0;">
+            <h3 style="margin-top:0; color:var(--warning); margin-bottom: 10px;">Kategorien</h3>
+            <div id="category-settings-list" style="margin-bottom:15px;"></div>
+            
+            <div class="setting-inputs" style="display:flex; gap:5px;">
+                <input type="text" id="new-cat-emoji" placeholder="🏠" style="width: 45px; text-align: center;">
+                <input type="text" id="new-cat-name" placeholder="Name (z.B. Haushalt)" style="flex:1;">
+                <button class="btn-reset" style="margin-top:0; width:auto; padding: 8px 12px; background:var(--warning);" onclick="addNewCategory()">+</button>
+            </div>
+        </div>
 
         <div id="settings-list"></div>
 
@@ -323,15 +381,16 @@
             <h3>Neues Element hinzufügen</h3>
             <input type="text" id="new-item-name" placeholder="Name (z.B. Müll rausbringen)" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px;">
             <div class="setting-inputs" style="margin-bottom: 10px;">
-                <select id="new-item-type" style="width: 100%;" onchange="toggleNewAccFields('settings')">
-                    <option value="recurring" selected>Wiederkehrend (Recurring)</option>
-                    <option value="single">Einmalig (Single)</option>
-                    <option value="accumulating">Sammelnd (Accumulating)</option>
+                <select id="new-item-type" style="flex: 1;" onchange="toggleNewAccFields('settings')">
+                    <option value="recurring" selected>Recurring</option>
+                    <option value="single">Single</option>
+                    <option value="accumulating">Accumulating</option>
                 </select>
+                <select id="new-item-category" style="flex: 1;"></select>
             </div>
             <div class="setting-inputs">
                 <label>Aktuelle Tage: <input type="number" id="new-item-current" value="0" min="-1"></label>
-                <label>Max. Tage (Fällig): <input type="number" id="new-item-max" value="3" min="1"></label>
+                <label>Max. Tage: <input type="number" id="new-item-max" value="3" min="1"></label>
             </div>
             <!-- Extra Fields for Accumulating -->
             <div id="new-acc-fields-settings" class="setting-inputs" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
@@ -355,16 +414,31 @@
     </div>
 
     <script>
-        const defaultData = [
-            { id: 'default_1', name: 'add your own reminder', maxDays: 1, lastChanged: Date.now(), type: 'single' },
-            { id: 'default_2', name: 'check ToDo Items', maxDays: 5, lastChanged: Date.now(), type: 'recurring' }
+        const defaultCategories = [
+            { id: 'cat_none', emoji: '📁', name: 'Allgemein' },
+            { id: 'cat_home', emoji: '🏠', name: 'Zuhause' },
+            { id: 'cat_work', emoji: '💼', name: 'Arbeit' }
         ];
 
+        const defaultData = [
+            { id: 'default_1', name: 'add your own reminder', maxDays: 1, lastChanged: Date.now(), type: 'single', categoryId: 'cat_none' },
+            { id: 'default_2', name: 'check ToDo Items', maxDays: 5, lastChanged: Date.now(), type: 'recurring', categoryId: 'cat_none' }
+        ];
+
+        let categories = [];
         let items = [];
         let currentSortMode = 'manual';
         let dayChangeHour = 4;
+        let activeCategoryFilter = null; // null means show all
 
         function loadData() {
+            const storedCats = localStorage.getItem('reToDoCategories');
+            if (storedCats) {
+                categories = JSON.parse(storedCats);
+            } else {
+                categories = JSON.parse(JSON.stringify(defaultCategories));
+            }
+
             const stored = localStorage.getItem('reToDoData') || localStorage.getItem('hygieneTrackerData');
             const storedSort = localStorage.getItem('reToDoSort');
             const storedHour = localStorage.getItem('reToDoDayChange');
@@ -375,9 +449,12 @@
 
             if (stored) {
                 items = JSON.parse(stored);
-                // Migration logic for old data lacking 'type'
+                // Migration logic for old data lacking 'type' or 'categoryId'
                 items = items.map(item => {
                     if (!item.type) item.type = 'recurring';
+                    if (!item.categoryId || !categories.find(c => c.id === item.categoryId)) {
+                        item.categoryId = categories.length > 0 ? categories[0].id : 'cat_none';
+                    }
                     return item;
                 });
             } else {
@@ -391,10 +468,12 @@
             }
 
             document.getElementById('settings-day-change').value = dayChangeHour;
+            updateCategoryDropdowns();
         }
 
         function saveData() {
             localStorage.setItem('reToDoData', JSON.stringify(items));
+            localStorage.setItem('reToDoCategories', JSON.stringify(categories));
             localStorage.setItem('reToDoDayChange', dayChangeHour);
         }
 
@@ -416,6 +495,117 @@
             currentSortMode = document.getElementById('sort-select').value;
             localStorage.setItem('reToDoSort', currentSortMode);
             renderTracker();
+        }
+        
+        function updateCategoryDropdowns() {
+            const mainDropdown = document.getElementById('new-item-category-main');
+            const settingsDropdown = document.getElementById('new-item-category');
+            const options = categories.map(c => `<option value="${c.id}">${c.emoji} ${c.name}</option>`).join('');
+            if (mainDropdown) mainDropdown.innerHTML = options;
+            if (settingsDropdown) settingsDropdown.innerHTML = options;
+        }
+
+        // Category UI
+        function renderFilters() {
+            const bar = document.getElementById('category-filter-bar');
+            bar.innerHTML = '';
+            
+            categories.forEach(cat => {
+                const el = document.createElement('div');
+                const isAllActive = activeCategoryFilter === null;
+                const isActive = activeCategoryFilter === cat.id;
+                
+                el.className = 'filter-emoji ' + (isActive ? 'active' : (isAllActive ? 'all-active' : ''));
+                el.innerText = cat.emoji;
+                el.title = cat.name;
+                
+                el.onclick = () => {
+                    if (activeCategoryFilter === cat.id) {
+                        activeCategoryFilter = null; // Toggle off
+                    } else {
+                        activeCategoryFilter = cat.id; // Toggle on
+                    }
+                    renderFilters();
+                    renderTracker();
+                };
+                bar.appendChild(el);
+            });
+        }
+
+        function renderCategorySettings() {
+            const container = document.getElementById('category-settings-list');
+            container.innerHTML = '';
+            
+            categories.forEach(cat => {
+                const row = document.createElement('div');
+                row.style.display = 'flex';
+                row.style.justifyContent = 'space-between';
+                row.style.alignItems = 'center';
+                row.style.marginBottom = '8px';
+                row.style.padding = '8px';
+                row.style.background = '#fff';
+                row.style.borderRadius = '5px';
+                row.style.border = '1px solid #eee';
+                
+                row.innerHTML = `
+                    <span style="font-size: 16px;">${cat.emoji} <strong>${cat.name}</strong></span>
+                    <button class="btn-delete" style="padding: 6px 10px; margin: 0;" onclick="deleteCategory('${cat.id}')">🗑️</button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function addNewCategory() {
+            const emojiInput = document.getElementById('new-cat-emoji');
+            const nameInput = document.getElementById('new-cat-name');
+            const emoji = emojiInput.value.trim() || '📁';
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                alert("Bitte gib einen Namen für die Kategorie ein.");
+                return;
+            }
+            
+            const newCat = {
+                id: 'cat_' + Date.now(),
+                emoji: emoji,
+                name: name
+            };
+            
+            categories.push(newCat);
+            emojiInput.value = '';
+            nameInput.value = '';
+            
+            saveData();
+            updateCategoryDropdowns();
+            renderCategorySettings();
+            renderSettings(); // Re-render to update the item dropdowns
+        }
+
+        function deleteCategory(id) {
+            if (categories.length <= 1) {
+                alert("Du musst mindestens eine Kategorie behalten.");
+                return;
+            }
+            if (confirm("Kategorie wirklich löschen? Zugeordnete Elemente werden der ersten verbleibenden Kategorie zugewiesen.")) {
+                categories = categories.filter(c => c.id !== id);
+                const fallbackId = categories[0].id;
+                
+                items.forEach(item => {
+                    if (item.categoryId === id) {
+                        item.categoryId = fallbackId;
+                    }
+                });
+                
+                if (activeCategoryFilter === id) {
+                    activeCategoryFilter = null;
+                }
+                
+                saveData();
+                updateCategoryDropdowns();
+                renderCategorySettings();
+                renderSettings(); 
+            }
         }
 
         // Handle visibility of Accumulating setting fields
@@ -446,7 +636,7 @@
             // Enforce Max Bounds for Accumulating items before rendering
             items.forEach(item => {
                 if (item.type === 'accumulating') {
-                    const max = item.maxAcc !== undefined ? item.maxAcc : (item.maxDays + 5); // Fallback
+                    const max = item.maxAcc !== undefined ? item.maxAcc : (item.maxDays + 5); 
                     const currentDays = getDaysElapsed(item.lastChanged);
                     
                     if (currentDays > max) {
@@ -460,6 +650,11 @@
             if (dataChanged) saveData();
 
             let displayItems = [...items];
+
+            // Apply Category Filter
+            if (activeCategoryFilter !== null) {
+                displayItems = displayItems.filter(item => item.categoryId === activeCategoryFilter);
+            }
 
             if (currentSortMode === 'soonest') {
                 displayItems.sort((a, b) => {
@@ -512,6 +707,8 @@
                     typeLabel = '📈';
                     resetText = '✔️ -1 Tag';
                 }
+                
+                const catObj = categories.find(c => c.id === item.categoryId) || categories[0] || {emoji: '📁', name: 'Unknown'};
 
                 const card = document.createElement('div');
                 card.className = 'item-card';
@@ -522,7 +719,8 @@
                     </div>
                     <div class="item-details">
                         <span class="type-icon">${typeLabel}</span> 
-                        <span>Tag ${daysElapsed} von fällig ${item.maxDays}</span>
+                        <span>Tag ${daysElapsed} von ${item.maxDays}</span>
+                        <span class="cat-badge" title="${catObj.name}">${catObj.emoji}</span>
                     </div>
                     <button class="btn-reset" onclick="resetItem('${item.id}')">${resetText}</button>
                 `;
@@ -537,10 +735,8 @@
                 const msPerDay = 24 * 60 * 60 * 1000;
                 
                 if (item.type === 'single') {
-                    // Single reminders are removed upon completion
                     items.splice(itemIndex, 1);
                 } else if (item.type === 'accumulating') {
-                    // Accumulating: Reduce count by 1 (moves lastChanged forward 1 day), enforce min limit
                     const min = item.minAcc !== undefined ? item.minAcc : 0;
                     const currentDays = getDaysElapsed(item.lastChanged);
                     
@@ -549,7 +745,6 @@
                     
                     item.lastChanged += (diff * msPerDay);
                 } else {
-                    // Standard recurring
                     const currentDays = getDaysElapsed(item.lastChanged);
                     if (currentDays === 0) {
                         item.lastChanged = Date.now() + msPerDay;
@@ -564,6 +759,8 @@
         }
 
         function renderSettings() {
+            renderCategorySettings();
+            
             const container = document.getElementById('settings-list');
             container.innerHTML = '';
             
@@ -577,20 +774,28 @@
                 const minAccVal = item.minAcc !== undefined ? item.minAcc : 0;
                 const maxAccVal = item.maxAcc !== undefined ? item.maxAcc : (item.maxDays + 5);
                 const showAcc = item.type === 'accumulating' ? 'flex' : 'none';
+                
+                // Build category options
+                const catOptions = categories.map(c => 
+                    `<option value="${c.id}" ${c.id === item.categoryId ? 'selected' : ''}>${c.emoji} ${c.name}</option>`
+                ).join('');
 
                 row.innerHTML = `
                     <input type="text" id="name-${item.id}" value="${item.name}">
                     <div class="setting-inputs" style="margin-bottom: 10px;">
-                        <select id="type-${item.id}" style="width: 100%;" onchange="toggleAccFields('${item.id}')">
+                        <select id="type-${item.id}" style="flex: 1;" onchange="toggleAccFields('${item.id}')">
                             <option value="recurring" ${item.type === 'recurring' ? 'selected' : ''}>Recurring</option>
                             <option value="single" ${item.type === 'single' ? 'selected' : ''}>Once</option>
                             <option value="accumulating" ${item.type === 'accumulating' ? 'selected' : ''}>Accumulating</option>
+                        </select>
+                        <select id="cat-${item.id}" style="flex: 1;">
+                            ${catOptions}
                         </select>
                     </div>
                     
                     <div class="setting-inputs" style="margin-bottom: 10px;">
                         <label style="margin-left: 10px;">Ist-Tage: <input type="number" id="current-${item.id}" value="${currentDays}" min="-1"></label>
-                        <label>Max. Tage (Fällig): <input type="number" id="max-${item.id}" value="${item.maxDays}" min="1"></label>
+                        <label>Max. Tage: <input type="number" id="max-${item.id}" value="${item.maxDays}" min="1"></label>
                     </div>
 
                     <div id="acc-fields-${item.id}" class="setting-inputs" style="display: ${showAcc}; margin-bottom: 10px; padding-top: 10px; border-top: 1px solid #eee;">
@@ -624,11 +829,16 @@
                 const currentInput = document.getElementById(`current-${item.id}`);
                 const maxInput = document.getElementById(`max-${item.id}`);
                 const typeInput = document.getElementById(`type-${item.id}`);
+                const catInput = document.getElementById(`cat-${item.id}`);
 
                 if (!nameInput) return; 
 
                 item.name = nameInput.value.trim() || item.name;
                 item.maxDays = parseInt(maxInput.value) || item.maxDays;
+                
+                if (catInput) {
+                    item.categoryId = catInput.value;
+                }
                 
                 if (typeInput) {
                     item.type = typeInput.value;
@@ -691,6 +901,7 @@
             const currentDays = parseInt(document.getElementById('new-item-current' + suffix).value) || 0;
             const maxDays = parseInt(document.getElementById('new-item-max' + suffix).value) || 1;
             const typeValue = document.getElementById('new-item-type' + suffix).value;
+            const catValue = document.getElementById('new-item-category' + suffix).value;
 
             if (!nameInput) {
                 alert("Bitte gib einen Namen ein.");
@@ -703,7 +914,8 @@
                 name: nameInput,
                 maxDays: maxDays,
                 lastChanged: Date.now() - (currentDays * msPerDay),
-                type: typeValue
+                type: typeValue,
+                categoryId: catValue
             };
 
             if (typeValue === 'accumulating') {
@@ -732,7 +944,12 @@
 
         function exportData() {
             syncInputsToArray(); 
-            const exportString = JSON.stringify(items);
+            // Exporting both items and categories as an object
+            const exportData = {
+                items: items,
+                categories: categories
+            };
+            const exportString = JSON.stringify(exportData);
             const textarea = document.getElementById('data-transfer-area');
             textarea.value = exportString;
             textarea.select();
@@ -748,17 +965,28 @@
             try {
                 const parsedData = JSON.parse(importString);
                 
-                if (Array.isArray(parsedData) && parsedData.length > 0 && parsedData[0].hasOwnProperty('id')) {
-                    if (confirm("Wirklich überschreiben?")) {
-                        // Ensure imported data gets a type if missing
-                        items = parsedData.map(item => ({ ...item, type: item.type || 'recurring' }));
-                        saveData();
-                        renderSettings();
-                        textarea.value = ''; 
-                        alert("Daten wurden erfolgreich importiert!");
+                if (confirm("Wirklich überschreiben?")) {
+                    if (Array.isArray(parsedData)) {
+                        // Legacy import (just items array)
+                        items = parsedData.map(item => ({ 
+                            ...item, 
+                            type: item.type || 'recurring',
+                            categoryId: item.categoryId || (categories.length > 0 ? categories[0].id : 'cat_none')
+                        }));
+                    } else if (parsedData.items && parsedData.categories) {
+                        // New import format (object with items and categories)
+                        categories = parsedData.categories;
+                        items = parsedData.items;
+                    } else {
+                        alert("Ungültiges Format.");
+                        return;
                     }
-                } else {
-                    alert("Ungültiges Format.");
+                    
+                    saveData();
+                    updateCategoryDropdowns();
+                    renderSettings();
+                    textarea.value = ''; 
+                    alert("Daten wurden erfolgreich importiert!");
                 }
             } catch (error) {
                 alert("Fehler beim Importieren!");
@@ -778,6 +1006,7 @@
             if (tracker.style.display === 'none') {
                 tracker.style.display = 'block';
                 settings.style.display = 'none';
+                renderFilters();
                 renderTracker();
             } else {
                 tracker.style.display = 'none';
@@ -788,6 +1017,7 @@
 
         // Init
         loadData();
+        renderFilters();
         renderTracker();
     </script>
 </body>
