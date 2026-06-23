@@ -282,15 +282,22 @@
             <h3>Neue Erinnerung</h3>
             <input type="text" id="new-item-name-main" placeholder="Name (z.B. Termin anrufen)" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px;">
             <div class="setting-inputs" style="margin-bottom: 10px;">
-                <select id="new-item-type-main" style="width: 100%;">
+                <select id="new-item-type-main" style="width: 100%;" onchange="toggleNewAccFields('main')">
                     <option value="single" selected>Once (will be deleted on completion)</option>
-                    <option value="recurring">Recurring</option>
+                    <option value="recurring">Recurring (Wiederkehrend)</option>
+                    <option value="accumulating">Accumulating (Sammelnd)</option>
                 </select>
             </div>
             <div class="setting-inputs">
                 <label>Bereits vergangen: <input type="number" id="new-item-current-main" value="0" min="-1"></label>
                 <label>Tage bis fällig: <input type="number" id="new-item-max-main" value="1" min="1"></label>
             </div>
+            <!-- Extra Fields for Accumulating -->
+            <div id="new-acc-fields-main" class="setting-inputs" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                <label>Limit Min: <input type="number" id="new-item-minAcc-main" value="0"></label>
+                <label>Limit Max: <input type="number" id="new-item-maxAcc-main" value="5"></label>
+            </div>
+            
             <button class="btn-reset" style="background-color: var(--success); margin-top: 15px;" onclick="addNewItem('main')">+ Hinzufügen</button>
             <button class="btn-reset" style="background-color: #7f8c8d; margin-top: 10px;" onclick="toggleMainAddForm()">Abbrechen</button>
         </div>
@@ -316,15 +323,22 @@
             <h3>Neues Element hinzufügen</h3>
             <input type="text" id="new-item-name" placeholder="Name (z.B. Müll rausbringen)" style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; font-size: 16px;">
             <div class="setting-inputs" style="margin-bottom: 10px;">
-                <select id="new-item-type" style="width: 100%;">
+                <select id="new-item-type" style="width: 100%;" onchange="toggleNewAccFields('settings')">
                     <option value="recurring" selected>Wiederkehrend (Recurring)</option>
                     <option value="single">Einmalig (Single)</option>
+                    <option value="accumulating">Sammelnd (Accumulating)</option>
                 </select>
             </div>
             <div class="setting-inputs">
                 <label>Aktuelle Tage: <input type="number" id="new-item-current" value="0" min="-1"></label>
-                <label>Max. Tage: <input type="number" id="new-item-max" value="3" min="1"></label>
+                <label>Max. Tage (Fällig): <input type="number" id="new-item-max" value="3" min="1"></label>
             </div>
+            <!-- Extra Fields for Accumulating -->
+            <div id="new-acc-fields-settings" class="setting-inputs" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">
+                <label>Limit Min: <input type="number" id="new-item-minAcc" value="0"></label>
+                <label>Limit Max: <input type="number" id="new-item-maxAcc" value="10"></label>
+            </div>
+            
             <button class="btn-reset" style="background-color: var(--primary); margin-top: 15px;" onclick="addNewItem('settings')">+ Hinzufügen</button>
         </div>
 
@@ -404,9 +418,46 @@
             renderTracker();
         }
 
+        // Handle visibility of Accumulating setting fields
+        function toggleAccFields(id) {
+            const select = document.getElementById(`type-${id}`);
+            const fields = document.getElementById(`acc-fields-${id}`);
+            if (select && fields) {
+                fields.style.display = select.value === 'accumulating' ? 'flex' : 'none';
+            }
+        }
+        
+        function toggleNewAccFields(context) {
+            const suffix = context === 'main' ? '-main' : '';
+            const select = document.getElementById(`new-item-type${suffix}`);
+            const fields = document.getElementById(`new-acc-fields${suffix}`);
+            if (select && fields) {
+                fields.style.display = select.value === 'accumulating' ? 'flex' : 'none';
+            }
+        }
+
         function renderTracker() {
             const container = document.getElementById('item-list');
             container.innerHTML = '';
+            
+            const msPerDay = 1000 * 60 * 60 * 24;
+            let dataChanged = false;
+
+            // Enforce Max Bounds for Accumulating items before rendering
+            items.forEach(item => {
+                if (item.type === 'accumulating') {
+                    const max = item.maxAcc !== undefined ? item.maxAcc : (item.maxDays + 5); // Fallback
+                    const currentDays = getDaysElapsed(item.lastChanged);
+                    
+                    if (currentDays > max) {
+                        const diff = currentDays - max;
+                        item.lastChanged += (diff * msPerDay);
+                        dataChanged = true;
+                    }
+                }
+            });
+            
+            if (dataChanged) saveData();
 
             let displayItems = [...items];
 
@@ -452,7 +503,15 @@
                     statusText = 'Fällig!';
                 }
                 
-                const typeLabel = item.type === 'single' ? '📌' : '🔄';
+                let typeLabel = '🔄';
+                let resetText = '✔️ Erledigt';
+                
+                if (item.type === 'single') {
+                    typeLabel = '📌';
+                } else if (item.type === 'accumulating') {
+                    typeLabel = '📈';
+                    resetText = '✔️ -1 Tag';
+                }
 
                 const card = document.createElement('div');
                 card.className = 'item-card';
@@ -463,9 +522,9 @@
                     </div>
                     <div class="item-details">
                         <span class="type-icon">${typeLabel}</span> 
-                        <span>Tag ${daysElapsed} von max. ${item.maxDays}</span>
+                        <span>Tag ${daysElapsed} von fällig ${item.maxDays}</span>
                     </div>
-                    <button class="btn-reset" onclick="resetItem('${item.id}')">✔️ Erledigt</button>
+                    <button class="btn-reset" onclick="resetItem('${item.id}')">${resetText}</button>
                 `;
                 container.appendChild(card);
             });
@@ -475,14 +534,25 @@
             const itemIndex = items.findIndex(i => i.id === id);
             if (itemIndex > -1) {
                 const item = items[itemIndex];
+                const msPerDay = 24 * 60 * 60 * 1000;
                 
                 if (item.type === 'single') {
                     // Single reminders are removed upon completion
                     items.splice(itemIndex, 1);
+                } else if (item.type === 'accumulating') {
+                    // Accumulating: Reduce count by 1 (moves lastChanged forward 1 day), enforce min limit
+                    const min = item.minAcc !== undefined ? item.minAcc : 0;
+                    const currentDays = getDaysElapsed(item.lastChanged);
+                    
+                    const targetDays = Math.max(min, currentDays - 1);
+                    const diff = currentDays - targetDays;
+                    
+                    item.lastChanged += (diff * msPerDay);
                 } else {
+                    // Standard recurring
                     const currentDays = getDaysElapsed(item.lastChanged);
                     if (currentDays === 0) {
-                        item.lastChanged = Date.now() + (24 * 60 * 60 * 1000);
+                        item.lastChanged = Date.now() + msPerDay;
                     } else {
                         item.lastChanged = Date.now();
                     }
@@ -503,21 +573,34 @@
                 const currentDays = getDaysElapsed(item.lastChanged);
                 const row = document.createElement('div');
                 row.className = 'setting-row';
+                
+                const minAccVal = item.minAcc !== undefined ? item.minAcc : 0;
+                const maxAccVal = item.maxAcc !== undefined ? item.maxAcc : (item.maxDays + 5);
+                const showAcc = item.type === 'accumulating' ? 'flex' : 'none';
+
                 row.innerHTML = `
                     <input type="text" id="name-${item.id}" value="${item.name}">
                     <div class="setting-inputs" style="margin-bottom: 10px;">
-                        <select id="type-${item.id}" style="width: 100%;">
-                            <option value="recurring" ${item.type !== 'single' ? 'selected' : ''}>Recurring</option>
+                        <select id="type-${item.id}" style="width: 100%;" onchange="toggleAccFields('${item.id}')">
+                            <option value="recurring" ${item.type === 'recurring' ? 'selected' : ''}>Recurring</option>
                             <option value="single" ${item.type === 'single' ? 'selected' : ''}>Once</option>
+                            <option value="accumulating" ${item.type === 'accumulating' ? 'selected' : ''}>Accumulating</option>
                         </select>
                     </div>
+                    
+                    <div class="setting-inputs" style="margin-bottom: 10px;">
+                        <label style="margin-left: 10px;">Ist-Tage: <input type="number" id="current-${item.id}" value="${currentDays}" min="-1"></label>
+                        <label>Max. Tage (Fällig): <input type="number" id="max-${item.id}" value="${item.maxDays}" min="1"></label>
+                    </div>
+
+                    <div id="acc-fields-${item.id}" class="setting-inputs" style="display: ${showAcc}; margin-bottom: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+                        <label>Limit Min: <input type="number" id="minAcc-${item.id}" value="${minAccVal}"></label>
+                        <label>Limit Max: <input type="number" id="maxAcc-${item.id}" value="${maxAccVal}"></label>
+                    </div>
+                    
                     <div class="setting-inputs">
                         <button class="btn-icon" onclick="moveItem('${item.id}', 'up')" ${index === 0 ? 'style="opacity:0.2; pointer-events:none;"' : ''}>⬆️</button>
                         <button class="btn-icon" onclick="moveItem('${item.id}', 'down')" ${index === items.length - 1 ? 'style="opacity:0.2; pointer-events:none;"' : ''}>⬇️</button>
-                        
-                        <label style="margin-left: 10px;">Ist-Tage: <input type="number" id="current-${item.id}" value="${currentDays}" min="-1"></label>
-                        <label>Max. Tage: <input type="number" id="max-${item.id}" value="${item.maxDays}" min="1"></label>
-                        
                         <button class="btn-delete" onclick="deleteItem('${item.id}')">🗑️</button>
                     </div>
                 `;
@@ -546,7 +629,17 @@
 
                 item.name = nameInput.value.trim() || item.name;
                 item.maxDays = parseInt(maxInput.value) || item.maxDays;
-                if (typeInput) item.type = typeInput.value;
+                
+                if (typeInput) {
+                    item.type = typeInput.value;
+                    
+                    if (item.type === 'accumulating') {
+                        const minIn = parseInt(document.getElementById(`minAcc-${item.id}`).value);
+                        const maxIn = parseInt(document.getElementById(`maxAcc-${item.id}`).value);
+                        item.minAcc = isNaN(minIn) ? 0 : minIn;
+                        item.maxAcc = isNaN(maxIn) ? 10 : maxIn;
+                    }
+                }
                 
                 const oldCurrentDays = getDaysElapsed(item.lastChanged);
                 const newCurrentDays = parseInt(currentInput.value);
@@ -612,6 +705,13 @@
                 lastChanged: Date.now() - (currentDays * msPerDay),
                 type: typeValue
             };
+
+            if (typeValue === 'accumulating') {
+                const pMin = parseInt(document.getElementById('new-item-minAcc' + suffix).value);
+                const pMax = parseInt(document.getElementById('new-item-maxAcc' + suffix).value);
+                newItem.minAcc = isNaN(pMin) ? 0 : pMin;
+                newItem.maxAcc = isNaN(pMax) ? 5 : pMax;
+            }
 
             items.push(newItem);
             saveData();
